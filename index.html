@@ -1,9 +1,321 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="pl">
 <head>
-    <title>Moja gra</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clicker RPG - Offline</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui;background:#0f1724;color:#fff;overflow-x:hidden;position:relative;}
+/* Ekran ładowania */
+#loading{position:fixed;inset:0;background:#0f1724;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:1000;}
+#loading p{margin:10px;font-size:18px;}
+#loading-bar-container{width:60%;height:20px;background:#223049;border-radius:10px;overflow:hidden;margin-top:10px;box-shadow:0 0 10px #000;}
+#loading-bar{width:0%;height:100%;background:#ffb86b;transition:width 0.2s;}
+#loading-cookie{width:50px;height:50px;margin-top:20px;animation:spin 1.5s linear infinite;}
+@keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+
+/* Gra */
+.container{max-width:900px;margin:20px auto;display:flex;flex-direction:column;gap:20px;padding:20px;display:none}
+.card{background:#182236;padding:16px;border-radius:12px;box-shadow:0 0 15px #000;}
+#cookie{width:220px;height:220px;border-radius:50%;background:#ffb86b;display:flex;align-items:center;justify-content:center;cursor:pointer;margin:auto;transition:transform 0.1s;}
+#cookie.click{transform:scale(1.1);}
+#cookie img{width:90%;height:90%;object-fit:contain}
+.score{font-size:28px;font-weight:800;text-align:center;margin:10px}
+.tabs{display:flex;gap:10px;margin-bottom:10px}
+.tab{flex:1;padding:10px;text-align:center;cursor:pointer;background:#223049;border-radius:8px;user-select:none;}
+.tab.active{background:#ffb86b;color:#000;font-weight:700}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.shop-item{display:flex;align-items:center;gap:10px;background:#223049;padding:10px;border-radius:8px;margin:6px 0}
+.shop-item img{width:48px;height:48px;border-radius:6px;}
+button{padding:6px 10px;border:0;border-radius:6px;cursor:pointer;font-weight:600}
+.small{background:#ffb86b}
+.small.disabled{background:#555;cursor:default;color:#999}
+.ghost{background:transparent;border:1px solid #666;color:#ccc}
+.skin-list{display:flex;gap:10px;flex-wrap:wrap}
+.skin{width:60px;height:60px;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid transparent}
+.skin.selected{border-color:#ffb86b}
+/* Modal */
+#levelup-modal,#login-modal{position:fixed;inset:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:2000}
+.modal-content{background:#182236;padding:30px;border-radius:12px;text-align:center;max-width:400px}
+.modal-content h2{font-size:28px;margin-bottom:10px}
+.modal-content input{width:80%;padding:8px;margin:6px 0;border-radius:6px;border:none;font-size:16px;}
+.modal-content label{font-size:14px;}
+
+/* Złote ciasteczko */
+#gold-cookie{position:absolute;width:80px;height:80px;display:none;cursor:pointer;z-index:1500;pointer-events:auto;}
+</style>
 </head>
 <body>
-    <h1>Działa!</h1>
+
+<div id="loading">
+  <p>Ładowanie gry...</p>
+  <div id="loading-bar-container">
+    <div id="loading-bar"></div>
+  </div>
+  <p id="loading-progress">0%</p>
+  <img id="loading-cookie" src="https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png">
+</div>
+
+<div class="container" id="app">
+  <div class="card">
+    <div id="cookie"><img id="cookie-img"></div>
+    <div class="score" id="score">0</div>
+    <div style="text-align:center">CPC: <span id="cpc">1</span> · CPS: <span id="cps">0</span></div>
+    <div style="text-align:center">Poziom: <span id="level">1</span> · EXP: <span id="exp">0</span>/<span id="exp-need">100</span></div>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" data-tab="shop">🛒 Sklep</div>
+      <div class="tab" data-tab="skins">🎨 Skórki</div>
+      <div class="tab" data-tab="settings">⚙️ Ustawienia</div>
+    </div>
+    <div class="tab-content active" id="shop"></div>
+    <div class="tab-content" id="skins"></div>
+    <div class="tab-content" id="settings">
+      <button class="ghost" id="reset-btn">Reset gry</button>
+    </div>
+  </div>
+</div>
+
+<div id="levelup-modal">
+  <div class="modal-content">
+    <h2 id="levelup-title">🎉 Awans!</h2>
+    <p id="levelup-text"></p>
+    <button onclick="closeLevelup()">OK</button>
+  </div>
+</div>
+
+<div id="login-modal">
+  <div class="modal-content">
+    <h2>Login / Rejestracja</h2>
+    <input type="text" id="username" placeholder="Nazwa użytkownika"><br>
+    <input type="password" id="password" placeholder="Hasło"><br>
+    <label><input type="checkbox" id="save-password"> Zapisz hasło</label><br><br>
+    <button onclick="login()">Zaloguj / Zarejestruj</button>
+  </div>
+</div>
+
+<img id="gold-cookie" src="https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png">
+
+<script>
+// --- Assets ---
+const ASSETS = {
+  cookie:"https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png",
+  shop:[
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png","https://twemoji.maxcdn.com/v/latest/72x72/1f373.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f3ed.png","https://twemoji.maxcdn.com/v/latest/72x72/1f680.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f370.png","https://twemoji.maxcdn.com/v/latest/72x72/1f6d2.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f373.png","https://twemoji.maxcdn.com/v/latest/72x72/1f3e0.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f5ff.png","https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f69a.png","https://twemoji.maxcdn.com/v/latest/72x72/1f3ea.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f3e2.png","https://twemoji.maxcdn.com/v/latest/72x72/1f6e2.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f3ed.png","https://twemoji.maxcdn.com/v/latest/72x72/1f3d9.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f30d.png","https://twemoji.maxcdn.com/v/latest/72x72/1f30c.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f47e.png","https://twemoji.maxcdn.com/v/latest/72x72/1f47d.png"
+  ],
+  skins:[
+    {name:"Klasyczne",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png"},
+    {name:"Czekoladowe",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f36b.png"},
+    {name:"Neon",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f36c.png"},
+    {name:"Gluten Free",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f35e.png"},
+    {name:"Mega Cookie",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png"},
+    {name:"Robot Cookie",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f916.png"}
+  ]
+};
+
+// --- Konta i LocalStorage ---
+let currentUser = null;
+let state = null;
+function saveState(){if(currentUser)localStorage.setItem("clicker_user_"+currentUser.username,JSON.stringify(state));}
+function loadState(){if(currentUser){let saved=localStorage.getItem("clicker_user_"+currentUser.username);if(saved)state=JSON.parse(saved);}}
+function showLogin(){document.getElementById("login-modal").style.display="flex";}
+function login(){
+  const username=document.getElementById("username").value.trim();
+  const password=document.getElementById("password").value.trim();
+  const savePass=document.getElementById("save-password").checked;
+  if(!username||!password){alert("Wpisz dane");return;}
+  let users=JSON.parse(localStorage.getItem("clicker_users")||"{}");
+  if(users[username]){
+    if(users[username].password!==password){alert("Błędne hasło");return;}
+  }else{
+    users[username]={password,passwordSaved:savePass};
+    localStorage.setItem("clicker_users",JSON.stringify(users));
+  }
+  currentUser={username,password};
+  if(savePass)localStorage.setItem("clicker_saved",JSON.stringify(currentUser));
+  document.getElementById("login-modal").style.display="none";
+  if(!state)initState();
+  render();
+  document.getElementById("app").style.display="flex";
+}
+
+// --- Inicjalizacja stanu gry ---
+function initState(){
+  state={
+    score:0,cpc:1,cps:0,exp:0,level:1,
+    upgrades:[
+      {name:"Mocniejszy klik",cost:50,cpc:1,level:1},
+      {name:"Robot",cost:120,cps:1,level:1},
+      {name:"Fabryka",cost:600,cps:10,level:2},
+      {name:"Klikacz Turbo",cost:2000,cpc:5,level:2},
+      {name:"Cukiernia",cost:5000,cps:25,level:3},
+      {name:"Piekarnik",cost:15000,cps:60,level:3},
+      {name:"Kuchnia",cost:40000,cps:150,level:4},
+      {name:"Piekarnia",cost:100000,cps:400,level:5},
+      {name:"Piec kamienny",cost:300000,cps:1000,level:6},
+      {name:"Mega Ciastko",cost:800000,cpc:50,level:7},
+      {name:"Dostawca ciastek",cost:1500000,cps:2500,level:8},
+      {name:"Sklep z ciastkami",cost:4000000,cps:7000,level:9},
+      {name:"Magazyn",cost:10000000,cps:20000,level:10},
+      {name:"Linia produkcyjna",cost:30000000,cps:60000,level:11},
+      {name:"Fabryka XXL",cost:80000000,cps:200000,level:12},
+      {name:"Miasto ciastek",cost:200000000,cps:600000,level:13},
+      {name:"Planeta ciastek",cost:600000000,cps:2000000,level:14},
+      {name:"Galaktyka ciastek",cost:1500000000,cps:6000000,level:15},
+      {name:"UFO ciastek",cost:4000000000,cps:20000000,level:16},
+      {name:"Kosmiczna cywilizacja ciastek",cost:10000000000,cps:60000000,level:17}
+    ],
+    skinIndex:0
+  };
+}
+
+// --- Funkcje renderujące ---
+function expNeeded(){return 100*state.level*state.level;}
+function gainExp(amount){state.exp+=amount;if(state.exp>=expNeeded()){state.exp=0;state.level++;showLevelup();}}
+function showLevelup(){document.getElementById("levelup-title").textContent="🎉 Awans!";document.getElementById("levelup-text").textContent="Osiągnąłeś poziom "+state.level+"!";document.getElementById("levelup-modal").style.display="flex";render();saveState();}
+function closeLevelup(){document.getElementById("levelup-modal").style.display="none";}
+function render(){
+  document.getElementById("score").textContent=Math.floor(state.score);
+  document.getElementById("cpc").textContent=state.cpc;
+  document.getElementById("cps").textContent=state.cps;
+  document.getElementById("level").textContent=state.level;
+  document.getElementById("exp").textContent=state.exp;
+  document.getElementById("exp-need").textContent=expNeeded();
+  renderShop();renderSkins();
+  saveState();
+}
+
+// --- Sklep z pokazaniem CPC/CPS ---
+function renderShop(){
+  let shop=document.getElementById("shop"); shop.innerHTML="";
+  state.upgrades.forEach((u,i)=>{
+    let div=document.createElement("div"); div.className="shop-item";
+    if(state.level>=u.level){
+      let bonusText = "";
+      if(u.cpc) bonusText += `+${u.cpc} CPC `;
+      if(u.cps) bonusText += `+${u.cps} CPS`;
+      div.innerHTML = `
+        <img src="${ASSETS.shop[i]}">
+        <div>
+          <b>${u.name}</b><br>
+          Koszt: ${u.cost}<br>
+          ${bonusText}
+        </div>
+        <button class="small" onclick="buy(${i})">Kup</button>
+      `;
+    } else {
+      div.innerHTML = `
+        <img src="${ASSETS.shop[i]}">
+        <div>
+          <b>${u.name}</b><br>
+          <span style="color:#888">Nie odblokowane</span>
+        </div>
+        <button class="small disabled" disabled>Nie dostępne</button>
+      `;
+    }
+    shop.appendChild(div);
+  });
+}
+
+function buy(i){
+  let u=state.upgrades[i];
+  if(state.level>=u.level && state.score>=u.cost){
+    state.score-=u.cost;
+    if(u.cpc) state.cpc+=u.cpc;
+    if(u.cps) state.cps+=u.cps;
+    u.cost=Math.round(u.cost*1.15/10)*10;
+    render();
+  }
+}
+
+function renderSkins(){
+  let el=document.getElementById("skins"); el.innerHTML="";
+  ASSETS.skins.forEach((s,i)=>{
+    let d=document.createElement("div"); d.className="skin"+(i===state.skinIndex?" selected":"");
+    d.style.background=`url(${s.url}) center/cover no-repeat`;
+    d.onclick=()=>{state.skinIndex=i;document.getElementById("cookie-img").src=s.url;render();};
+    el.appendChild(d);
+  });
+}
+
+// --- Interakcje ---
+document.getElementById("cookie").onclick=()=>{
+  state.score+=state.cpc;
+  gainExp(state.cpc);
+  render();
+  document.getElementById("cookie").classList.add("click");
+  setTimeout(()=>{document.getElementById("cookie").classList.remove("click");},100);
+};
+document.getElementById("reset-btn").onclick=()=>{if(confirm("Resetować?")){initState();render();}};
+document.querySelectorAll(".tab").forEach(t=>{t.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));t.classList.add("active");document.getElementById(t.dataset.tab).classList.add("active");}});
+
+// --- CPS automatyczny ---
+setInterval(()=>{state.score+=state.cps;gainExp(state.cps);render();},1000);
+
+// --- Złote ciasteczko co 5 minut ---
+function spawnGoldCookie(){
+  const gc=document.getElementById("gold-cookie");
+  gc.style.display="block";
+  gc.style.top=Math.random()*window.innerHeight*0.7+"px";
+  gc.style.left="-100px";
+  let start=Date.now();
+  const duration=5000;
+  function animate(){
+    let progress=(Date.now()-start)/duration;
+    if(progress>1){gc.style.display="none";return;}
+    gc.style.left=progress*(window.innerWidth+100)-50+"px";
+    requestAnimationFrame(animate);
+  }
+  animate();
+  gc.onclick=()=>{
+    let available=state.upgrades.filter(u=>state.level>=u.level);
+    if(available.length>0){
+      let best=available.reduce((a,b)=>((a.cps||a.cpc)>(b.cps||b.cpc)?a:b));
+      if(best.cps) state.cps+=best.cps;
+      if(best.cpc) state.cpc+=best.cpc;
+      alert("Złote ciasteczko! Otrzymałeś ulepszenie: "+best.name);
+      gc.style.display="none";
+      render();
+    }
+  }
+}
+setInterval(spawnGoldCookie,300000); // 5 minut
+
+// --- Preload obrazków ---
+const allImages=[ASSETS.cookie,...ASSETS.shop,...ASSETS.skins.map(s=>s.url)];
+let loaded=0;
+allImages.forEach(src=>{
+  const img=new Image();
+  img.src=src;
+  img.onload=()=>{
+    loaded++;
+    let percent=Math.floor(loaded/allImages.length*100);
+    document.getElementById("loading-progress").textContent=percent+"%";
+    document.getElementById("loading-bar").style.width=percent+"%";
+    if(loaded===allImages.length){
+      document.getElementById("loading").style.display="none";
+      // Sprawdź zapisane konto
+      let saved=JSON.parse(localStorage.getItem("clicker_saved")||"null");
+      if(saved){currentUser=saved;loadState();}else{showLogin();}
+      document.getElementById("cookie-img").src=ASSETS.skins[state?state.skinIndex:0].url;
+      render();
+      document.getElementById("app").style.display="flex";
+    }
+  };
+});
+</script>
 </body>
 </html>
