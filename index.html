@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Clicker RPG - Offline</title>
+<title>Clicker RPG</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 <style>
-body{margin:0;font-family:Inter,system-ui;background:#0f1724;color:#fff;overflow-x:hidden;position:relative;}
+body{margin:0;font-family:Inter,system-ui;background:#0f1724;color:#fff;overflow-x:hidden;}
 /* Ekran ładowania */
 #loading{position:fixed;inset:0;background:#0f1724;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:1000;}
 #loading p{margin:10px;font-size:18px;}
 #loading-bar-container{width:60%;height:20px;background:#223049;border-radius:10px;overflow:hidden;margin-top:10px;box-shadow:0 0 10px #000;}
-#loading-bar{width:0%;height:100%;background:#ffb86b;transition:width 0.2s;}
+#loading-bar{width:0%;height:100%;background:#ffb86b;transition:width 0.3s;}
 #loading-cookie{width:50px;height:50px;margin-top:20px;animation:spin 1.5s linear infinite;}
 @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
 
@@ -27,24 +27,54 @@ body{margin:0;font-family:Inter,system-ui;background:#0f1724;color:#fff;overflow
 .tab.active{background:#ffb86b;color:#000;font-weight:700}
 .tab-content{display:none}
 .tab-content.active{display:block}
+.shop-section{margin-bottom:20px}
+.shop-section h3{margin:10px 0;font-size:20px;color:#ffb86b}
 .shop-item{display:flex;align-items:center;gap:10px;background:#223049;padding:10px;border-radius:8px;margin:6px 0}
-.shop-item img{width:48px;height:48px;border-radius:6px;}
+.shop-item img{width:48px;height:48px}
 button{padding:6px 10px;border:0;border-radius:6px;cursor:pointer;font-weight:600}
 .small{background:#ffb86b}
 .small.disabled{background:#555;cursor:default;color:#999}
 .ghost{background:transparent;border:1px solid #666;color:#ccc}
-.skin-list{display:flex;gap:10px;flex-wrap:wrap}
-.skin{width:60px;height:60px;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid transparent}
-.skin.selected{border-color:#ffb86b}
+
+/* Skórki */
+.skin-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.skin {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px;
+  background-size: cover;
+  background-position: center;
+}
+.skin.selected { border-color:#ffb86b; }
+.skin button {
+  width: 100%;
+  font-size: 10px;
+  padding: 2px;
+  margin-top: 4px;
+  border-radius: 4px;
+}
+.skin button.disabled {
+  background:#555;
+  cursor:default;
+  color:#999;
+}
+
 /* Modal */
-#levelup-modal,#login-modal{position:fixed;inset:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:2000}
+#levelup-modal{position:fixed;inset:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:2000}
 .modal-content{background:#182236;padding:30px;border-radius:12px;text-align:center;max-width:400px}
 .modal-content h2{font-size:28px;margin-bottom:10px}
-.modal-content input{width:80%;padding:8px;margin:6px 0;border-radius:6px;border:none;font-size:16px;}
-.modal-content label{font-size:14px;}
-
-/* Złote ciasteczko */
-#gold-cookie{position:absolute;width:80px;height:80px;display:none;cursor:pointer;z-index:1500;pointer-events:auto;}
 </style>
 </head>
 <body>
@@ -63,7 +93,7 @@ button{padding:6px 10px;border:0;border-radius:6px;cursor:pointer;font-weight:60
     <div id="cookie"><img id="cookie-img"></div>
     <div class="score" id="score">0</div>
     <div style="text-align:center">CPC: <span id="cpc">1</span> · CPS: <span id="cps">0</span></div>
-    <div style="text-align:center">Poziom: <span id="level">1</span> · EXP: <span id="exp">0</span>/<span id="exp-need">100</span></div>
+    <div style="text-align:center">Poziom: <span id="level">1</span> · EXP: <span id="exp">0</span>/<span id="exp-need">2000</span></div>
   </div>
 
   <div class="card">
@@ -88,105 +118,92 @@ button{padding:6px 10px;border:0;border-radius:6px;cursor:pointer;font-weight:60
   </div>
 </div>
 
-<div id="login-modal">
-  <div class="modal-content">
-    <h2>Login / Rejestracja</h2>
-    <input type="text" id="username" placeholder="Nazwa użytkownika"><br>
-    <input type="password" id="password" placeholder="Hasło"><br>
-    <label><input type="checkbox" id="save-password"> Zapisz hasło</label><br><br>
-    <button onclick="login()">Zaloguj / Zarejestruj</button>
-  </div>
-</div>
-
-<img id="gold-cookie" src="https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png">
-
 <script>
 // --- Assets ---
 const ASSETS = {
   cookie:"https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png",
   shop:[
-    "https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png","https://twemoji.maxcdn.com/v/latest/72x72/1f373.png",
-    "https://twemoji.maxcdn.com/v/latest/72x72/1f3ed.png","https://twemoji.maxcdn.com/v/latest/72x72/1f680.png",
-    "https://twemoji.maxcdn.com/v/latest/72x72/1f370.png","https://twemoji.maxcdn.com/v/latest/72x72/1f6d2.png",
-    "https://twemoji.maxcdn.com/v/latest/72x72/1f373.png","https://twemoji.maxcdn.com/v/latest/72x72/1f3e0.png",
-    "https://twemoji.maxcdn.com/v/latest/72x72/1f5ff.png","https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png",
-    "https://twemoji.maxcdn.com/v/latest/72x72/1f69a.png","https://twemoji.maxcdn.com/v/latest/72x72/1f3ea.png",
-    "https://twemoji.maxcdn.com/v/latest/72x72/1f3e2.png","https://twemoji.maxcdn.com/v/latest/72x72/1f6e2.png",
-    "https://twemoji.maxcdn.com/v/latest/72x72/1f3ed.png","https://twemoji.maxcdn.com/v/latest/72x72/1f3d9.png",
-    "https://twemoji.maxcdn.com/v/latest/72x72/1f30d.png","https://twemoji.maxcdn.com/v/latest/72x72/1f30c.png",
-    "https://twemoji.maxcdn.com/v/latest/72x72/1f47e.png","https://twemoji.maxcdn.com/v/latest/72x72/1f47d.png"
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f36b.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f36c.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f35e.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f916.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f36d.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f354.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f355.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f354.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f363.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f35f.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f371.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f370.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f382.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f36e.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f9c1.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f953.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f354.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f96a.png",
+    "https://twemoji.maxcdn.com/v/latest/72x72/1f357.png"
   ],
   skins:[
-    {name:"Klasyczne",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png"},
-    {name:"Czekoladowe",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f36b.png"},
-    {name:"Neon",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f36c.png"},
-    {name:"Gluten Free",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f35e.png"},
-    {name:"Mega Cookie",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png"},
-    {name:"Robot Cookie",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f916.png"}
+    {name:"Klasyczne",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png",cost:1000},
+    {name:"Czekoladowe",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f36b.png",cost:5000},
+    {name:"Neon",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f36c.png",cost:10000},
+    {name:"Chlebek",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f35e.png",cost:50000},
+    {name:"Robot Cookie",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f916.png",cost:100000},
+    {name:"Piesek",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f436.png",cost:500000},
+    {name:"Ryba",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f41f.png",cost:1000000},
+    {name:"Jabłko",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f34e.png",cost:5000000},
+    {name:"Banan",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f34c.png",cost:20000000},
+    {name:"Truskawka",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f353.png",cost:1e8},
+    {name:"Wiśnia",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f352.png",cost:5e8},
+    {name:"Pomarańcza",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f34a.png",cost:2e9},
+    {name:"Winogrona",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f347.png",cost:1e10},
+    {name:"Cytryna",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f34b.png",cost:5e10},
+    {name:"Arbuz",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f349.png",cost:2e11},
+    {name:"Ananas",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f34d.png",cost:1e12},
+    {name:"Brzoskwinia",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f351.png",cost:5e12},
+    {name:"Melon",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f348.png",cost:2e13},
+    {name:"Borówka",url:"https://twemoji.maxcdn.com/v/latest/72x72/1fAD0.png",cost:1e14},
+    {name:"Mega Ciastko",url:"https://twemoji.maxcdn.com/v/latest/72x72/1f36a.png",cost:1e40}
   ]
 };
 
-// --- Konta i LocalStorage ---
-let currentUser = null;
-let state = null;
-function saveState(){if(currentUser)localStorage.setItem("clicker_user_"+currentUser.username,JSON.stringify(state));}
-function loadState(){if(currentUser){let saved=localStorage.getItem("clicker_user_"+currentUser.username);if(saved)state=JSON.parse(saved);}}
-function showLogin(){document.getElementById("login-modal").style.display="flex";}
-function login(){
-  const username=document.getElementById("username").value.trim();
-  const password=document.getElementById("password").value.trim();
-  const savePass=document.getElementById("save-password").checked;
-  if(!username||!password){alert("Wpisz dane");return;}
-  let users=JSON.parse(localStorage.getItem("clicker_users")||"{}");
-  if(users[username]){
-    if(users[username].password!==password){alert("Błędne hasło");return;}
-  }else{
-    users[username]={password,passwordSaved:savePass};
-    localStorage.setItem("clicker_users",JSON.stringify(users));
-  }
-  currentUser={username,password};
-  if(savePass)localStorage.setItem("clicker_saved",JSON.stringify(currentUser));
-  document.getElementById("login-modal").style.display="none";
-  if(!state)initState();
-  render();
-  document.getElementById("app").style.display="flex";
-}
+// --- Stan gry ---
+let state={
+  score:0,cpc:1,cps:0,exp:0,level:1,
+  upgrades:[
+    {name:"Klikacz +1",cost:50,cpc:1,levelRequired:1},
+    {name:"Klikacz +5",cost:200,cpc:5,levelRequired:2},
+    {name:"Klikacz +10",cost:1000,cpc:10,levelRequired:3},
+    {name:"Klikacz +20",cost:4000,cpc:20,levelRequired:4},
+    {name:"Klikacz +50",cost:12000,cpc:50,levelRequired:5},
+    {name:"Klikacz +100",cost:30000,cpc:100,levelRequired:6},
+    {name:"Klikacz +250",cost:100000,cpc:250,levelRequired:7},
+    {name:"Klikacz +500",cost:500000,cpc:500,levelRequired:8},
+    {name:"Klikacz +1000",cost:2000000,cpc:1000,levelRequired:9},
+    {name:"Klikacz +5000",cost:10000000,cpc:5000,levelRequired:10},
+    {name:"CPS +1",cost:100,cps:1,levelRequired:2},
+    {name:"CPS +5",cost:500,cps:5,levelRequired:3},
+    {name:"CPS +20",cost:2500,cps:20,levelRequired:4},
+    {name:"CPS +100",cost:12000,cps:100,levelRequired:5},
+    {name:"CPS +500",cost:60000,cps:500,levelRequired:6},
+    {name:"CPS +2000",cost:250000,cps:2000,levelRequired:7},
+    {name:"CPS +10000",cost:1000000,cps:10000,levelRequired:8},
+    {name:"CPS +50000",cost:5000000,cps:50000,levelRequired:9},
+    {name:"CPS +200000",cost:20000000,cps:200000,levelRequired:10},
+    {name:"CPS +1000000",cost:100000000,cps:1000000,levelRequired:11}
+  ],
+  skinIndex:0,
+  skinPurchases:Array(20).fill(false)
+};
 
-// --- Inicjalizacja stanu gry ---
-function initState(){
-  state={
-    score:0,cpc:1,cps:0,exp:0,level:1,
-    upgrades:[
-      {name:"Mocniejszy klik",cost:50,cpc:1,level:1},
-      {name:"Robot",cost:120,cps:1,level:1},
-      {name:"Fabryka",cost:600,cps:10,level:2},
-      {name:"Klikacz Turbo",cost:2000,cpc:5,level:2},
-      {name:"Cukiernia",cost:5000,cps:25,level:3},
-      {name:"Piekarnik",cost:15000,cps:60,level:3},
-      {name:"Kuchnia",cost:40000,cps:150,level:4},
-      {name:"Piekarnia",cost:100000,cps:400,level:5},
-      {name:"Piec kamienny",cost:300000,cps:1000,level:6},
-      {name:"Mega Ciastko",cost:800000,cpc:50,level:7},
-      {name:"Dostawca ciastek",cost:1500000,cps:2500,level:8},
-      {name:"Sklep z ciastkami",cost:4000000,cps:7000,level:9},
-      {name:"Magazyn",cost:10000000,cps:20000,level:10},
-      {name:"Linia produkcyjna",cost:30000000,cps:60000,level:11},
-      {name:"Fabryka XXL",cost:80000000,cps:200000,level:12},
-      {name:"Miasto ciastek",cost:200000000,cps:600000,level:13},
-      {name:"Planeta ciastek",cost:600000000,cps:2000000,level:14},
-      {name:"Galaktyka ciastek",cost:1500000000,cps:6000000,level:15},
-      {name:"UFO ciastek",cost:4000000000,cps:20000000,level:16},
-      {name:"Kosmiczna cywilizacja ciastek",cost:10000000000,cps:60000000,level:17}
-    ],
-    skinIndex:0
-  };
-}
-
-// --- Funkcje renderujące ---
-function expNeeded(){return 100*state.level*state.level;}
+// --- EXP ---
+function expNeeded(){return 2000*Math.pow(3,state.level-1);}
 function gainExp(amount){state.exp+=amount;if(state.exp>=expNeeded()){state.exp=0;state.level++;showLevelup();}}
-function showLevelup(){document.getElementById("levelup-title").textContent="🎉 Awans!";document.getElementById("levelup-text").textContent="Osiągnąłeś poziom "+state.level+"!";document.getElementById("levelup-modal").style.display="flex";render();saveState();}
+function showLevelup(){document.getElementById("levelup-title").textContent="🎉 Awans!";document.getElementById("levelup-text").textContent="Osiągnąłeś poziom "+state.level+"!";document.getElementById("levelup-modal").style.display="flex";render();}
 function closeLevelup(){document.getElementById("levelup-modal").style.display="none";}
+
+// --- Render ---
 function render(){
   document.getElementById("score").textContent=Math.floor(state.score);
   document.getElementById("cpc").textContent=state.cpc;
@@ -194,45 +211,35 @@ function render(){
   document.getElementById("level").textContent=state.level;
   document.getElementById("exp").textContent=state.exp;
   document.getElementById("exp-need").textContent=expNeeded();
-  renderShop();renderSkins();
-  saveState();
+  renderShop();
+  renderSkins();
 }
-
-// --- Sklep z pokazaniem CPC/CPS ---
 function renderShop(){
-  let shop=document.getElementById("shop"); shop.innerHTML="";
+  let shop=document.getElementById("shop");shop.innerHTML="";
+  let cpcSection=document.createElement("div");
+  cpcSection.className="shop-section";cpcSection.innerHTML="<h3>⚡ CPC</h3>";
+  let cpsSection=document.createElement("div");
+  cpsSection.className="shop-section";cpsSection.innerHTML="<h3>⏱ CPS</h3>";
   state.upgrades.forEach((u,i)=>{
-    let div=document.createElement("div"); div.className="shop-item";
-    if(state.level>=u.level){
-      let bonusText = "";
-      if(u.cpc) bonusText += `+${u.cpc} CPC `;
-      if(u.cps) bonusText += `+${u.cps} CPS`;
-      div.innerHTML = `
-        <img src="${ASSETS.shop[i]}">
-        <div>
-          <b>${u.name}</b><br>
-          Koszt: ${u.cost}<br>
-          ${bonusText}
-        </div>
-        <button class="small" onclick="buy(${i})">Kup</button>
-      `;
+    let div=document.createElement("div");div.className="shop-item";
+    let effect=u.cpc?`+${u.cpc} CPC`:`+${u.cps} CPS`;
+    let imgUrl = ASSETS.shop[i % ASSETS.shop.length];
+    div.innerHTML=`<img src="${imgUrl}"><div><b>${u.name}</b><br>${effect}<br>Koszt: ${u.cost}</div><button class="small">Kup</button>`;
+    let btn = div.querySelector("button");
+    if(state.level < u.levelRequired){
+      btn.classList.add("disabled");
+      btn.textContent = `Odblokuje się na poziomie ${u.levelRequired}`;
+      btn.disabled = true;
     } else {
-      div.innerHTML = `
-        <img src="${ASSETS.shop[i]}">
-        <div>
-          <b>${u.name}</b><br>
-          <span style="color:#888">Nie odblokowane</span>
-        </div>
-        <button class="small disabled" disabled>Nie dostępne</button>
-      `;
+      btn.onclick = () => buy(i);
     }
-    shop.appendChild(div);
+    if(u.cpc) cpcSection.appendChild(div); else cpsSection.appendChild(div);
   });
+  shop.appendChild(cpcSection);shop.appendChild(cpsSection);
 }
-
 function buy(i){
   let u=state.upgrades[i];
-  if(state.level>=u.level && state.score>=u.cost){
+  if(state.score>=u.cost){
     state.score-=u.cost;
     if(u.cpc) state.cpc+=u.cpc;
     if(u.cps) state.cps+=u.cps;
@@ -240,82 +247,85 @@ function buy(i){
     render();
   }
 }
-
 function renderSkins(){
-  let el=document.getElementById("skins"); el.innerHTML="";
+  let el=document.getElementById("skins");
+  el.innerHTML="";
+  const list = document.createElement("div");
+  list.className = "skin-list";
   ASSETS.skins.forEach((s,i)=>{
-    let d=document.createElement("div"); d.className="skin"+(i===state.skinIndex?" selected":"");
-    d.style.background=`url(${s.url}) center/cover no-repeat`;
-    d.onclick=()=>{state.skinIndex=i;document.getElementById("cookie-img").src=s.url;render();};
-    el.appendChild(d);
+    let d=document.createElement("div");
+    d.className="skin"+(i===state.skinIndex?" selected":"");
+    d.style.backgroundImage=`url(${s.url})`;
+    let btn = document.createElement("button");
+    if(state.skinPurchases[i]){
+      btn.textContent = (i===state.skinIndex) ? "Wybrana" : "Wybierz";
+      btn.onclick = ()=>{
+        state.skinIndex = i;
+        document.getElementById("cookie-img").src = s.url;
+        render();
+      };
+    } else if(state.score >= s.cost){
+      btn.textContent = `Kup za ${s.cost}`;
+      btn.onclick = ()=>{
+        state.score -= s.cost;
+        state.skinPurchases[i] = true;
+        state.skinIndex = i;
+        document.getElementById("cookie-img").src = s.url;
+        render();
+      };
+    } else {
+      btn.textContent = `Kup za ${s.cost}`;
+      btn.disabled = true;
+      btn.classList.add("disabled");
+    }
+    d.appendChild(btn);
+    list.appendChild(d);
   });
+  el.appendChild(list);
 }
 
-// --- Interakcje ---
+// --- Główne ---
+document.getElementById("cookie-img").src=ASSETS.cookie;
 document.getElementById("cookie").onclick=()=>{
   state.score+=state.cpc;
   gainExp(state.cpc);
+  let c=document.getElementById("cookie");c.classList.add("click");
+  setTimeout(()=>c.classList.remove("click"),100);
   render();
-  document.getElementById("cookie").classList.add("click");
-  setTimeout(()=>{document.getElementById("cookie").classList.remove("click");},100);
 };
-document.getElementById("reset-btn").onclick=()=>{if(confirm("Resetować?")){initState();render();}};
-document.querySelectorAll(".tab").forEach(t=>{t.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));t.classList.add("active");document.getElementById(t.dataset.tab).classList.add("active");}});
-
-// --- CPS automatyczny ---
 setInterval(()=>{state.score+=state.cps;gainExp(state.cps);render();},1000);
 
-// --- Złote ciasteczko co 5 minut ---
-function spawnGoldCookie(){
-  const gc=document.getElementById("gold-cookie");
-  gc.style.display="block";
-  gc.style.top=Math.random()*window.innerHeight*0.7+"px";
-  gc.style.left="-100px";
-  let start=Date.now();
-  const duration=5000;
-  function animate(){
-    let progress=(Date.now()-start)/duration;
-    if(progress>1){gc.style.display="none";return;}
-    gc.style.left=progress*(window.innerWidth+100)-50+"px";
-    requestAnimationFrame(animate);
-  }
-  animate();
-  gc.onclick=()=>{
-    let available=state.upgrades.filter(u=>state.level>=u.level);
-    if(available.length>0){
-      let best=available.reduce((a,b)=>((a.cps||a.cpc)>(b.cps||b.cpc)?a:b));
-      if(best.cps) state.cps+=best.cps;
-      if(best.cpc) state.cpc+=best.cpc;
-      alert("Złote ciasteczko! Otrzymałeś ulepszenie: "+best.name);
-      gc.style.display="none";
-      render();
-    }
-  }
-}
-setInterval(spawnGoldCookie,300000); // 5 minut
-
-// --- Preload obrazków ---
-const allImages=[ASSETS.cookie,...ASSETS.shop,...ASSETS.skins.map(s=>s.url)];
-let loaded=0;
-allImages.forEach(src=>{
-  const img=new Image();
-  img.src=src;
-  img.onload=()=>{
-    loaded++;
-    let percent=Math.floor(loaded/allImages.length*100);
-    document.getElementById("loading-progress").textContent=percent+"%";
-    document.getElementById("loading-bar").style.width=percent+"%";
-    if(loaded===allImages.length){
-      document.getElementById("loading").style.display="none";
-      // Sprawdź zapisane konto
-      let saved=JSON.parse(localStorage.getItem("clicker_saved")||"null");
-      if(saved){currentUser=saved;loadState();}else{showLogin();}
-      document.getElementById("cookie-img").src=ASSETS.skins[state?state.skinIndex:0].url;
-      render();
-      document.getElementById("app").style.display="flex";
-    }
+// Tabs
+document.querySelectorAll(".tab").forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));
+    t.classList.add("active");
+    document.getElementById(t.dataset.tab).classList.add("active");
   };
 });
+// Reset
+document.getElementById("reset-btn").onclick=()=>{
+  if(confirm("Na pewno zresetować grę?")){
+    state.score=0;state.cpc=1;state.cps=0;state.exp=0;state.level=1;
+    state.skinIndex=0;state.skinPurchases=Array(20).fill(false);
+    state.upgrades.forEach((u,i)=>{u.cost=[50,200,1000,4000,12000,30000,100000,500000,2000000,10000000,100,500,2500,12000,60000,250000,1000000,5000000,20000000,100000000][i];});
+    document.getElementById("cookie-img").src=ASSETS.cookie;
+    render();
+  }
+};
+
+// --- Ładowanie ---
+let progress=0;let interval=setInterval(()=>{
+  progress+=10;
+  if(progress>=100){progress=100;clearInterval(interval);setTimeout(()=>{
+    document.getElementById("loading").style.display="none";
+    document.getElementById("app").style.display="block";
+    render();
+  },500);}
+  document.getElementById("loading-bar").style.width=progress+"%";
+  document.getElementById("loading-progress").textContent=progress+"%";
+},200);
 </script>
 </body>
 </html>
